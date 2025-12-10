@@ -1,0 +1,18 @@
+-- CreateTable
+CREATE TABLE `RoleRequest` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `userId` INTEGER NOT NULL,
+    `requestedRole` ENUM('ADMIN', 'SUPPLIER', 'DISTRIBUTOR', 'RETAILER', 'CUSTOMER') NOT NULL,
+    `businessName` VARCHAR(191) NOT NULL,
+    `businessAddress` VARCHAR(191) NOT NULL,
+    `contactNumber` VARCHAR(191) NOT NULL,
+    `NTN` VARCHAR(191) NULL,
+    `status` ENUM('PENDING', 'APPROVED', 'REJECTED') NOT NULL DEFAULT 'PENDING',
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- AddForeignKey
+ALTER TABLE `RoleRequest` ADD CONSTRAINT `RoleRequest_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;

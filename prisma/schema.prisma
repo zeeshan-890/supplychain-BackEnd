@@ -1,0 +1,333 @@
+// -----------------------------------------------------
+// GENERATOR + DATASOURCE
+// -----------------------------------------------------
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// -----------------------------------------------------
+// ENUMS
+// -----------------------------------------------------
+
+enum Role {
+  ADMIN
+  SUPPLIER
+  DISTRIBUTOR
+  CUSTOMER
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum OrderStatus {
+  PENDING // customer placed order, awaiting supplier approval
+  APPROVED // supplier approved, stock deducted, first leg created
+  PENDING_REASSIGN // distributor rejected, supplier needs to pick another
+  IN_PROGRESS // at least one leg in transit
+  DELIVERED // final delivery to customer confirmed
+  CANCELLED // cancelled by customer or rejected by supplier
+}
+
+enum LegStatus {
+  PENDING // awaiting recipient acceptance
+  ACCEPTED // recipient agreed to receive
+  IN_TRANSIT // currently being shipped
+  DELIVERED // recipient confirmed receipt
+  REJECTED // recipient declined
+}
+
+enum ParticipantType {
+  SUPPLIER
+  DISTRIBUTOR
+  CUSTOMER
+}
+
+// -----------------------------------------------------
+// USERS & AUTH
+// -----------------------------------------------------
+
+model PendingUser {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  name      String
+  password  String
+  otp       String
+  otpExpiry DateTime
+  createdAt DateTime @default(now())
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  picture   String?
+  role      Role     @default(CUSTOMER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Profile relations (only one will be set based on role)
+  supplierProfile    SupplierProfile?
+  distributorProfile DistributorProfile?
+
+  // Role request
+  roleRequests RoleRequest[]
+
+  // Orders (as customer)
+  ordersAsCustomer Order[]
+
+  // Tracking events
+  trackingFrom TrackingEvent[] @relation("TrackingFromUser")
+  trackingTo   TrackingEvent[] @relation("TrackingToUser")
+}
+
+// -----------------------------------------------------
+// ROLE REQUESTS
+// -----------------------------------------------------
+
+model RoleRequest {
+  id            Int           @id @default(autoincrement())
+  userId        Int
+  requestedRole Role // SUPPLIER or DISTRIBUTOR only
+  status        RequestStatus @default(PENDING)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Common fields
+  businessName    String
+  businessAddress String
+  contactNumber   String
+  NTN             String? // Tax number (optional)
+
+  // Supplier-specific (optional, only for SUPPLIER requests)
+  licenseNumber String?
+
+  // Distributor-specific (optional, only for DISTRIBUTOR requests)
+  serviceArea String?
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+// -----------------------------------------------------
+// SUPPLIER PROFILE & WAREHOUSE
+// -----------------------------------------------------
+
+model SupplierProfile {
+  id              Int      @id @default(autoincrement())
+  userId          Int      @unique
+  businessName    String
+  businessAddress String
+  contactNumber   String
+  NTN             String?
+  licenseNumber   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // RSA Key Pair for digital signatures
+  publicKey      String? @db.Text // RSA public key (PEM format)
+  privateKeyHash String? // SHA256 hash of private key for validation
+
+  user         User          @relation(fields: [userId], references: [id])
+  warehouse    Warehouse?
+  products     Product[]
+  transporters Transporter[]
+  orders       Order[] // orders received as supplier
+  legsAsFrom   OrderLeg[] // legs where this supplier is sending
+}
+
+model Warehouse {
+  id         Int      @id @default(autoincrement())
+  supplierId Int      @unique
+  name       String   @default("Main Warehouse")
+  address    String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  supplier    SupplierProfile @relation(fields: [supplierId], references: [id])
+  inventories Inventory[]
+}
+
+// -----------------------------------------------------
+// DISTRIBUTOR PROFILE
+// -----------------------------------------------------
+
+model DistributorProfile {
+  id              Int      @id @default(autoincrement())
+  userId          Int      @unique
+  businessName    String
+  businessAddress String
+  contactNumber   String
+  NTN             String?
+  serviceArea     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id])
+  transporters Transporter[]
+  legsAsFrom   OrderLeg[]    @relation("LegFromDistributor")
+  legsAsTo     OrderLeg[]    @relation("LegToDistributor")
+}
+
+// -----------------------------------------------------
+// PRODUCTS (Supplier creates)
+// -----------------------------------------------------
+
+model Product {
+  id          Int      @id @default(autoincrement())
+  name        String
+  category    String
+  batchNo     String
+  qrCode      String?  @unique
+  description String?
+  price       Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  supplierId Int
+  supplier   SupplierProfile @relation(fields: [supplierId], references: [id])
+
+  inventories Inventory[]
+  orders      Order[]
+}
+
+// -----------------------------------------------------
+// INVENTORY (in Warehouse)
+// -----------------------------------------------------
+
+model Inventory {
+  id          Int      @id @default(autoincrement())
+  warehouseId Int
+  productId   Int
+  quantity    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+  product   Product   @relation(fields: [productId], references: [id])
+
+  @@unique([warehouseId, productId])
+}
+
+// -----------------------------------------------------
+// ORDER SYSTEM
+// -----------------------------------------------------
+
+model Order {
+  id              Int         @id @default(autoincrement())
+  orderDate       DateTime    @default(now())
+  quantity        Int
+  totalAmount     Float
+  status          OrderStatus @default(PENDING)
+  deliveryAddress String
+  updatedAt       DateTime    @updatedAt
+
+  // Digital signature fields for QR verification
+  orderHash         String?   @db.VarChar(64) // SHA256 hash of order data
+  supplierSignature String?   @db.Text // RSA signature by supplier
+  serverSignature   String?   @db.Text // RSA signature by server
+  qrToken           String?   @db.Text // Base64 encoded token for QR
+  signedAt          DateTime? // When signatures were created
+
+  // Customer who placed the order
+  customerId Int
+  customer   User @relation(fields: [customerId], references: [id])
+
+  // Supplier who sells
+  supplierId Int
+  supplier   SupplierProfile @relation(fields: [supplierId], references: [id])
+
+  // Product ordered
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+
+  // Order chain (legs)
+  legs OrderLeg[]
+
+  // Tracking events (full history)
+  trackingEvents TrackingEvent[]
+}
+
+// -----------------------------------------------------
+// ORDER LEG (Chain of handoffs)
+// -----------------------------------------------------
+
+model OrderLeg {
+  id        Int       @id @default(autoincrement())
+  orderId   Int
+  legNumber Int // 1, 2, 3... sequence in the chain
+  status    LegStatus @default(PENDING)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // FROM: who is sending
+  fromType          ParticipantType
+  // If SUPPLIER, use fromSupplierId. If DISTRIBUTOR, use fromDistributorId
+  fromSupplierId    Int?
+  fromDistributorId Int?
+
+  // TO: who is receiving
+  toType          ParticipantType
+  // If DISTRIBUTOR, use toDistributorId. If CUSTOMER, toCustomerId is in Order
+  toDistributorId Int?
+  // Note: If toType=CUSTOMER, we use order.customerId
+
+  // Transporter for this leg
+  transporterId Int?
+  transporter   Transporter? @relation(fields: [transporterId], references: [id])
+
+  // Relations
+  order           Order               @relation(fields: [orderId], references: [id])
+  fromSupplier    SupplierProfile?    @relation(fields: [fromSupplierId], references: [id])
+  fromDistributor DistributorProfile? @relation("LegFromDistributor", fields: [fromDistributorId], references: [id])
+  toDistributor   DistributorProfile? @relation("LegToDistributor", fields: [toDistributorId], references: [id])
+
+  @@unique([orderId, legNumber])
+}
+
+// -----------------------------------------------------
+// TRANSPORTER (owned by Supplier or Distributor)
+// -----------------------------------------------------
+
+model Transporter {
+  id        Int      @id @default(autoincrement())
+  name      String
+  phone     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Owner: either supplier or distributor (one will be set)
+  supplierId    Int?
+  distributorId Int?
+
+  supplier    SupplierProfile?    @relation(fields: [supplierId], references: [id])
+  distributor DistributorProfile? @relation(fields: [distributorId], references: [id])
+
+  orderLegs OrderLeg[]
+}
+
+// -----------------------------------------------------
+// TRACKING EVENTS (Full history log)
+// -----------------------------------------------------
+
+model TrackingEvent {
+  id          Int      @id @default(autoincrement())
+  orderId     Int
+  legId       Int? // Optional: which leg this event relates to
+  fromUserId  Int?
+  toUserId    Int?
+  status      String // The status at this point
+  description String?
+  timestamp   DateTime @default(now())
+
+  order    Order @relation(fields: [orderId], references: [id])
+  fromUser User? @relation("TrackingFromUser", fields: [fromUserId], references: [id])
+  toUser   User? @relation("TrackingToUser", fields: [toUserId], references: [id])
+}
