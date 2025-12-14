@@ -150,7 +150,8 @@ export async function getMyRoleRequestsByUserId(userId) {
 
 // 🟥 Approve or Reject a request (FULL TRANSACTION)
 export async function updateRequestStatus(id, status) {
-  return await prisma.$transaction(async (tx) => {
+  return await prisma.$transaction(
+    async (tx) => {
     // 1. Get the request
     const request = await tx.roleRequest.findUnique({
       where: { id },
@@ -273,6 +274,10 @@ export async function updateRequestStatus(id, status) {
       ...updatedRequest,
       message: "Role request rejected.",
     };
+  },
+  {
+    maxWait: 15000, // Maximum time to wait for transaction to start (15 seconds)
+    timeout: 15000, // Maximum time for transaction to complete (15 seconds)
   });
 }
 
