@@ -312,6 +312,9 @@ export async function forwardOrder(orderId, distributorId, data) {
     });
 
     return newLeg;
+  }, {
+    maxWait: 15000,
+    timeout: 15000
   });
 }
 
