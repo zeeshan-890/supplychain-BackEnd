@@ -267,7 +267,10 @@ export async function getMyInventory(userId) {
 
   return prisma.inventory.findMany({
     where: { warehouseId: profile.warehouse.id },
-    include: { product: true },
+    include: { 
+      product: true,
+      warehouse: true 
+    },
   });
 }
 
