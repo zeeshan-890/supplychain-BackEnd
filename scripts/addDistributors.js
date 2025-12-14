@@ -57,7 +57,7 @@ async function addDistributors() {
     try {
         // Check if distributors already exist
         const existingCount = await prisma.distributorProfile.count();
-        
+
         if (existingCount >= 5) {
             console.log('✅ Distributors already exist. Skipping initialization.');
             return;

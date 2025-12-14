@@ -10,7 +10,7 @@ app.listen(process.env.PORT || 3000, async () => {
 
   // Create admin user if it doesn't exist
   await createAdminUser();
-  
+
   // Initialize default distributors if they don't exist
   await addDistributors();
 });
