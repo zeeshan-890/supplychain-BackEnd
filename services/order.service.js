@@ -92,6 +92,9 @@ export async function createOrder(customerId, data) {
     });
 
     return order;
+  }, {
+    maxWait: 15000,
+    timeout: 15000
   });
 }
 
@@ -202,6 +205,9 @@ export async function cancelOrder(orderId, customerId) {
     });
 
     return updatedOrder;
+  }, {
+    maxWait: 15000,
+    timeout: 15000
   });
 }
 
@@ -257,6 +263,9 @@ export async function confirmDelivery(orderId, customerId) {
     });
 
     return updatedOrder;
+  }, {
+    maxWait: 15000,
+    timeout: 15000
   });
 }
 
@@ -464,6 +473,9 @@ export async function approveOrder(orderId, supplierId, data) {
       qrToken,
       verificationUrl,
     };
+  }, {
+    maxWait: 15000,
+    timeout: 15000
   });
 }
 
@@ -510,6 +522,9 @@ export async function rejectOrder(orderId, supplierId, reason) {
     });
 
     return updatedOrder;
+  }, {
+    maxWait: 15000,
+    timeout: 15000
   });
 }
 
@@ -572,6 +587,9 @@ export async function shipOrder(orderId, supplierId, legId) {
     });
 
     return updatedLeg;
+  }, {
+    maxWait: 15000,
+    timeout: 15000
   });
 }
 
@@ -687,6 +705,9 @@ export async function reassignOrder(orderId, supplierId, data) {
       }),
       leg: newLeg,
     };
+  }, {
+    maxWait: 15000,
+    timeout: 15000
   });
 }
 
