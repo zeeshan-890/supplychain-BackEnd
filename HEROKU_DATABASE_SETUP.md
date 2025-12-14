@@ -20,6 +20,7 @@ Since you prefer the dashboard, we'll add the migration to your build process:
 1. Go to: https://dashboard.heroku.com/apps/supply-chain-af930a398ca8
 2. Click **More** (top right) → **Run console**
 3. Type: `npx prisma migrate deploy`
+
 4. Click **Run**
 
 ### Option B: Automatic migration on every deploy
