@@ -69,6 +69,9 @@ export async function registerUser({ name, email, password }) {
         otpExpiry,
       },
     });
+  }, {
+    maxWait: 15000,
+    timeout: 15000
   });
 
   await sendOtpEmail(email, otp);
@@ -115,6 +118,9 @@ export async function verifyOtp({ email, otp }) {
     });
 
     return createdUser;
+  }, {
+    maxWait: 15000,
+    timeout: 15000
   });
 
   return newUser;

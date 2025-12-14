@@ -59,6 +59,9 @@ export async function acceptLeg(legId, distributorId) {
     });
 
     return updatedLeg;
+  }, {
+    maxWait: 15000,
+    timeout: 15000
   });
 }
 
@@ -134,6 +137,9 @@ export async function rejectLeg(legId, distributorId, reason) {
     });
 
     return updatedLeg;
+  }, {
+    maxWait: 15000,
+    timeout: 15000
   });
 }
 
@@ -186,6 +192,9 @@ export async function confirmReceipt(legId, distributorId) {
     });
 
     return updatedLeg;
+  }, {
+    maxWait: 15000,
+    timeout: 15000
   });
 }
 
@@ -387,6 +396,9 @@ export async function shipForward(legId, distributorId) {
     });
 
     return updatedLeg;
+  }, {
+    maxWait: 15000,
+    timeout: 15000
   });
 }
 
@@ -509,5 +521,8 @@ export async function reassignDistributorLeg(
     });
 
     return newLeg;
+  }, {
+    maxWait: 15000,
+    timeout: 15000
   });
 }

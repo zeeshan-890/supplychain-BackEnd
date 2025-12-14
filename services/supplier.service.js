@@ -175,6 +175,9 @@ export async function deleteProduct(userId, productId) {
     return tx.product.delete({
       where: { id: productId },
     });
+  }, {
+    maxWait: 15000,
+    timeout: 15000
   });
 }
 
@@ -221,6 +224,9 @@ export async function addToInventory(userId, data) {
       },
       include: { product: true },
     });
+  }, {
+    maxWait: 15000,
+    timeout: 15000
   });
 }
 
@@ -252,6 +258,9 @@ export async function updateInventory(userId, inventoryId, quantity) {
       data: { quantity },
       include: { product: true },
     });
+  }, {
+    maxWait: 15000,
+    timeout: 15000
   });
 }
 
@@ -312,6 +321,9 @@ export async function removeFromInventory(userId, inventoryId) {
     return tx.inventory.delete({
       where: { id: inventoryId },
     });
+  }, {
+    maxWait: 15000,
+    timeout: 15000
   });
 }
 
@@ -411,6 +423,9 @@ export async function deleteTransporter(userId, transporterId) {
     return tx.transporter.delete({
       where: { id: transporterId },
     });
+  }, {
+    maxWait: 15000,
+    timeout: 15000
   });
 }
 

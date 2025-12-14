@@ -161,6 +161,9 @@ export async function verifyQrToken(token, customerId) {
           },
         });
       }
+    }, {
+      maxWait: 15000,
+      timeout: 15000
     });
   }
 

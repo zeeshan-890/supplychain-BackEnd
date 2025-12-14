@@ -135,6 +135,9 @@ export async function deleteTransporter(userId, transporterId) {
     return tx.transporter.delete({
       where: { id: transporterId },
     });
+  }, {
+    maxWait: 15000,
+    timeout: 15000
   });
 }
 
