@@ -195,7 +195,7 @@ export async function updateRequestStatus(id, status) {
       // Create profile based on role
       if (requestedRole === "SUPPLIER") {
         // Generate RSA key pair for supplier
-        const { publicKey, privateKey } = generateKeyPair();
+        const { publicKey, privateKey } = await generateKeyPair();
         const privateKeyHash = sha256Hash(privateKey.trim());
 
         console.log("=== NEW SUPPLIER KEY GENERATION ===");

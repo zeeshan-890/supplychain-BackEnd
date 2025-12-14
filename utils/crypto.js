@@ -6,22 +6,29 @@ import crypto from "crypto";
 
 /**
  * Generate RSA key pair for a supplier
- * @returns {{ publicKey: string, privateKey: string }}
+ * @returns {Promise<{ publicKey: string, privateKey: string }>}
  */
-export function generateKeyPair() {
-  const { publicKey, privateKey } = crypto.generateKeyPairSync("rsa", {
-    modulusLength: 2048,
-    publicKeyEncoding: {
-      type: "spki",
-      format: "pem",
-    },
-    privateKeyEncoding: {
-      type: "pkcs8",
-      format: "pem",
-    },
+export async function generateKeyPair() {
+  return new Promise((resolve, reject) => {
+    crypto.generateKeyPair(
+      "rsa",
+      {
+        modulusLength: 2048,
+        publicKeyEncoding: {
+          type: "spki",
+          format: "pem",
+        },
+        privateKeyEncoding: {
+          type: "pkcs8",
+          format: "pem",
+        },
+      },
+      (err, publicKey, privateKey) => {
+        if (err) reject(err);
+        else resolve({ publicKey, privateKey });
+      }
+    );
   });
-
-  return { publicKey, privateKey };
 }
 
 // =====================================================
