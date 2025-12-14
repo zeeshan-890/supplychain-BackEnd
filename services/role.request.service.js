@@ -152,133 +152,133 @@ export async function getMyRoleRequestsByUserId(userId) {
 export async function updateRequestStatus(id, status) {
   return await prisma.$transaction(
     async (tx) => {
-    // 1. Get the request
-    const request = await tx.roleRequest.findUnique({
-      where: { id },
-      include: { user: true },
-    });
-
-    if (!request) throw new ResponseError("Role request not found", 404);
-
-    if (request.status !== "PENDING") {
-      throw new ResponseError(
-        `Request has already been ${request.status.toLowerCase()}`,
-        400
-      );
-    }
-
-    // Check if user still has CUSTOMER role
-    if (request.user.role !== "CUSTOMER") {
-      throw new ResponseError(
-        `User already has ${request.user.role} role. Cannot approve.`,
-        400
-      );
-    }
-
-    // 2. Update the request status
-    const updatedRequest = await tx.roleRequest.update({
-      where: { id },
-      data: { status },
-    });
-
-    // -----------------------------------
-    // CASE: APPROVE REQUEST
-    // -----------------------------------
-    if (status === "APPROVED") {
-      const { userId, requestedRole } = request;
-
-      // Update user role
-      await tx.user.update({
-        where: { id: userId },
-        data: { role: requestedRole },
+      // 1. Get the request
+      const request = await tx.roleRequest.findUnique({
+        where: { id },
+        include: { user: true },
       });
 
-      // Create profile based on role
-      if (requestedRole === "SUPPLIER") {
-        // Generate RSA key pair for supplier
-        const { publicKey, privateKey } = await generateKeyPair();
-        const privateKeyHash = sha256Hash(privateKey.trim());
+      if (!request) throw new ResponseError("Role request not found", 404);
 
-        console.log("=== NEW SUPPLIER KEY GENERATION ===");
-        console.log("Private key length:", privateKey.length);
-        console.log("Private key first 50 chars:", privateKey.substring(0, 50));
-        console.log("Private key hash:", privateKeyHash);
-        console.log("====================================");
-
-        // Create SupplierProfile with keys
-        const supplierProfile = await tx.supplierProfile.create({
-          data: {
-            userId,
-            businessName: request.businessName,
-            businessAddress: request.businessAddress,
-            contactNumber: request.contactNumber,
-            NTN: request.NTN,
-            licenseNumber: request.licenseNumber,
-            publicKey,
-            privateKeyHash,
-          },
-        });
-
-        // Auto-create warehouse for supplier
-        await tx.warehouse.create({
-          data: {
-            supplierId: supplierProfile.id,
-            name: "Main Warehouse",
-            address: request.businessAddress,
-          },
-        });
-
-        // Email private key to supplier (outside transaction to avoid blocking)
-        // We use setImmediate to send email after transaction commits
-        setImmediate(async () => {
-          try {
-            await sendPrivateKeyEmail(
-              request.user.email,
-              request.user.name,
-              privateKey
-            );
-            console.log(
-              `Private key emailed to supplier: ${request.user.email}`
-            );
-          } catch (emailError) {
-            console.error(
-              `Failed to email private key to ${request.user.email}:`,
-              emailError
-            );
-          }
-        });
-      } else if (requestedRole === "DISTRIBUTOR") {
-        // Create DistributorProfile
-        await tx.distributorProfile.create({
-          data: {
-            userId,
-            businessName: request.businessName,
-            businessAddress: request.businessAddress,
-            contactNumber: request.contactNumber,
-            NTN: request.NTN,
-            serviceArea: request.serviceArea,
-          },
-        });
+      if (request.status !== "PENDING") {
+        throw new ResponseError(
+          `Request has already been ${request.status.toLowerCase()}`,
+          400
+        );
       }
 
+      // Check if user still has CUSTOMER role
+      if (request.user.role !== "CUSTOMER") {
+        throw new ResponseError(
+          `User already has ${request.user.role} role. Cannot approve.`,
+          400
+        );
+      }
+
+      // 2. Update the request status
+      const updatedRequest = await tx.roleRequest.update({
+        where: { id },
+        data: { status },
+      });
+
+      // -----------------------------------
+      // CASE: APPROVE REQUEST
+      // -----------------------------------
+      if (status === "APPROVED") {
+        const { userId, requestedRole } = request;
+
+        // Update user role
+        await tx.user.update({
+          where: { id: userId },
+          data: { role: requestedRole },
+        });
+
+        // Create profile based on role
+        if (requestedRole === "SUPPLIER") {
+          // Generate RSA key pair for supplier
+          const { publicKey, privateKey } = await generateKeyPair();
+          const privateKeyHash = sha256Hash(privateKey.trim());
+
+          console.log("=== NEW SUPPLIER KEY GENERATION ===");
+          console.log("Private key length:", privateKey.length);
+          console.log("Private key first 50 chars:", privateKey.substring(0, 50));
+          console.log("Private key hash:", privateKeyHash);
+          console.log("====================================");
+
+          // Create SupplierProfile with keys
+          const supplierProfile = await tx.supplierProfile.create({
+            data: {
+              userId,
+              businessName: request.businessName,
+              businessAddress: request.businessAddress,
+              contactNumber: request.contactNumber,
+              NTN: request.NTN,
+              licenseNumber: request.licenseNumber,
+              publicKey,
+              privateKeyHash,
+            },
+          });
+
+          // Auto-create warehouse for supplier
+          await tx.warehouse.create({
+            data: {
+              supplierId: supplierProfile.id,
+              name: "Main Warehouse",
+              address: request.businessAddress,
+            },
+          });
+
+          // Email private key to supplier (outside transaction to avoid blocking)
+          // We use setImmediate to send email after transaction commits
+          setImmediate(async () => {
+            try {
+              await sendPrivateKeyEmail(
+                request.user.email,
+                request.user.name,
+                privateKey
+              );
+              console.log(
+                `Private key emailed to supplier: ${request.user.email}`
+              );
+            } catch (emailError) {
+              console.error(
+                `Failed to email private key to ${request.user.email}:`,
+                emailError
+              );
+            }
+          });
+        } else if (requestedRole === "DISTRIBUTOR") {
+          // Create DistributorProfile
+          await tx.distributorProfile.create({
+            data: {
+              userId,
+              businessName: request.businessName,
+              businessAddress: request.businessAddress,
+              contactNumber: request.contactNumber,
+              NTN: request.NTN,
+              serviceArea: request.serviceArea,
+            },
+          });
+        }
+
+        return {
+          ...updatedRequest,
+          message: `User promoted to ${requestedRole}. Profile created.`,
+        };
+      }
+
+      // -----------------------------------
+      // CASE: REJECT REQUEST
+      // -----------------------------------
       return {
         ...updatedRequest,
-        message: `User promoted to ${requestedRole}. Profile created.`,
+        message: "Role request rejected.",
       };
-    }
-
-    // -----------------------------------
-    // CASE: REJECT REQUEST
-    // -----------------------------------
-    return {
-      ...updatedRequest,
-      message: "Role request rejected.",
-    };
-  },
-  {
-    maxWait: 15000, // Maximum time to wait for transaction to start (15 seconds)
-    timeout: 15000, // Maximum time for transaction to complete (15 seconds)
-  });
+    },
+    {
+      maxWait: 15000, // Maximum time to wait for transaction to start (15 seconds)
+      timeout: 15000, // Maximum time for transaction to complete (15 seconds)
+    });
 }
 
 // 🟨 Get request by ID
