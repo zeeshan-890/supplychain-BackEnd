@@ -1,7 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+    log: ['error']
+});
 
 const distributors = [
     {
@@ -52,9 +54,17 @@ const distributors = [
 ];
 
 async function addDistributors() {
-    console.log('🚀 Starting to add distributors...\n');
-
     try {
+        // Check if distributors already exist
+        const existingCount = await prisma.distributorProfile.count();
+        
+        if (existingCount >= 5) {
+            console.log('✅ Distributors already exist. Skipping initialization.');
+            return;
+        }
+
+        console.log('🚀 Initializing default distributors...\n');
+
         for (let i = 0; i < distributors.length; i++) {
             const dist = distributors[i];
             console.log(`📦 Creating distributor ${i + 1}: ${dist.businessName}`);
@@ -98,37 +108,43 @@ async function addDistributors() {
             console.log(`   📍 Location: ${user.distributorProfile.serviceArea}\n`);
         }
 
-        console.log('🎉 All distributors added successfully!\n');
-        console.log('📋 Summary:');
-        console.log('━'.repeat(60));
-
-        const allDistributors = await prisma.distributorProfile.findMany({
-            include: {
-                user: true
-            }
-        });
-
-        allDistributors.forEach((dist, index) => {
-            console.log(`${index + 1}. ${dist.businessName}`);
-            console.log(`   Email: ${dist.user.email}`);
-            console.log(`   Password: Qw@12345`);
-            console.log(`   Contact: ${dist.user.name} (${dist.contactNumber})`);
-            console.log(`   Location: ${dist.serviceArea}`);
-            console.log('');
-        }); console.log('━'.repeat(60));
-        console.log('\n✨ You can now login with any of these distributor accounts!');
+        console.log('✅ Default distributors initialized successfully!\n');
 
     } catch (error) {
         console.error('❌ Error adding distributors:', error);
-        throw error;
-    } finally {
-        await prisma.$disconnect();
     }
 }
 
-// Run the script
-addDistributors()
-    .catch((error) => {
-        console.error('Fatal error:', error);
-        process.exit(1);
-    });
+// Export for use in server startup
+export default addDistributors;
+
+// Run the script if executed directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+    addDistributors()
+        .then(async () => {
+            console.log('\n📋 All Distributors:');
+            console.log('━'.repeat(60));
+
+            const allDistributors = await prisma.distributorProfile.findMany({
+                include: { user: true }
+            });
+
+            allDistributors.forEach((dist, index) => {
+                console.log(`${index + 1}. ${dist.businessName}`);
+                console.log(`   Email: ${dist.user.email}`);
+                console.log(`   Password: Qw@12345`);
+                console.log(`   Contact: ${dist.user.name} (${dist.contactNumber})`);
+                console.log(`   Location: ${dist.serviceArea}`);
+                console.log('');
+            });
+
+            console.log('━'.repeat(60));
+            console.log('\n✨ You can now login with any of these distributor accounts!');
+            await prisma.$disconnect();
+            process.exit(0);
+        })
+        .catch((error) => {
+            console.error('Fatal error:', error);
+            process.exit(1);
+        });
+}
