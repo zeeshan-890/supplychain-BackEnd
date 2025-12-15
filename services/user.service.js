@@ -39,7 +39,7 @@ export async function getUserById(id) {
         },
       },
       distributorProfile: true,
-      ordersAsCustomer: { take: 10, orderBy: { createdAt: "desc" } },
+      ordersAsCustomer: { take: 10, orderBy: { orderDate: "desc" } },
     },
   });
 }
@@ -55,7 +55,7 @@ export async function getUserByEmail(email) {
         },
       },
       distributorProfile: true,
-      ordersAsCustomer: { take: 10, orderBy: { createdAt: "desc" } },
+      ordersAsCustomer: { take: 10, orderBy: { orderDate: "desc" } },
     },
   });
 }
