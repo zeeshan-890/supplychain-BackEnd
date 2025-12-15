@@ -65,11 +65,25 @@ export async function updateUser(req, res, next) {
   }
 }
 
-// ⬛ Delete user
+// ⬛ Delete user (self)
 export async function deleteUser(req, res, next) {
   try {
     const data = req.user;
     const user = await userService.deleteUser(data.email);
+    if (!user) throw new ResponseError("User doesn't exist", 404);
+    res.json({ message: "User deleted successfully" });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// 🟥 Delete user by ID (admin only)
+export async function deleteUserById(req, res, next) {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) throw new ResponseError("Invalid user ID", 400);
+    
+    const user = await userService.deleteUserById(id);
     if (!user) throw new ResponseError("User doesn't exist", 404);
     res.json({ message: "User deleted successfully" });
   } catch (err) {

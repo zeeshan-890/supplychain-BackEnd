@@ -71,7 +71,12 @@ export async function updateUser(email, data) {
   });
 }
 
-// ⬛ Delete user
+// ⬛ Delete user (self)
 export async function deleteUser(email) {
   return prisma.user.delete({ where: { email } });
+}
+
+// 🟥 Delete user by ID (admin only)
+export async function deleteUserById(id) {
+  return prisma.user.delete({ where: { id } });
 }

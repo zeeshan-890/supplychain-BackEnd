@@ -36,4 +36,7 @@ router.delete(
 // =====================================================
 router.get("/all", authorizeRoles("ADMIN"), userController.getAllUsers);
 
+// Delete any user by ID (admin only)
+router.delete("/:id", authorizeRoles("ADMIN"), userController.deleteUserById);
+
 export default router;
