@@ -82,10 +82,10 @@ export async function deleteUserById(id) {
   return await prisma.$transaction(async (tx) => {
     // Delete tracking events
     await tx.trackingEvent.deleteMany({ where: { OR: [{ fromUserId: id }, { toUserId: id }] } });
-    
+
     // Delete role requests
     await tx.roleRequest.deleteMany({ where: { userId: id } });
-    
+
     // Get user to check for profiles
     const user = await tx.user.findUnique({
       where: { id },
@@ -94,47 +94,47 @@ export async function deleteUserById(id) {
         distributorProfile: true,
       },
     });
-    
+
     if (!user) return null;
-    
+
     // If user has supplier profile, delete related data
     if (user.supplierProfile) {
       const supplierId = user.supplierProfile.id;
-      
+
       // Delete warehouse inventories
       if (user.supplierProfile.warehouse) {
         await tx.inventory.deleteMany({ where: { warehouseId: user.supplierProfile.warehouse.id } });
         await tx.warehouse.delete({ where: { id: user.supplierProfile.warehouse.id } });
       }
-      
+
       // Delete products
       await tx.product.deleteMany({ where: { supplierId } });
-      
+
       // Delete transporters
       await tx.transporter.deleteMany({ where: { supplierId } });
-      
+
       // Handle orders where user is supplier (set to null or handle appropriately)
       // Note: Cannot delete orders as they reference the supplier, might need different handling
       await tx.order.deleteMany({ where: { supplierId } });
-      
+
       // Delete supplier profile
       await tx.supplierProfile.delete({ where: { id: supplierId } });
     }
-    
+
     // If user has distributor profile, delete related data
     if (user.distributorProfile) {
       const distributorId = user.distributorProfile.id;
-      
+
       // Delete order legs
       await tx.orderLeg.deleteMany({ where: { distributorId } });
-      
+
       // Delete distributor profile
       await tx.distributorProfile.delete({ where: { id: distributorId } });
     }
-    
+
     // Delete orders where user is customer
     await tx.order.deleteMany({ where: { customerId: id } });
-    
+
     // Finally delete the user
     return await tx.user.delete({ where: { id } });
   });
