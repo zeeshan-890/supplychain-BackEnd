@@ -448,12 +448,50 @@ export async function getMyOrders(userId) {
       customer: {
         select: { id: true, name: true, email: true },
       },
+      supplier: {
+        include: {
+          user: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+      },
       legs: {
         include: {
           transporter: true,
-          toDistributor: true,
+          toDistributor: {
+            include: {
+              user: {
+                select: { id: true, name: true, email: true },
+              },
+            },
+          },
+          fromSupplier: {
+            include: {
+              user: {
+                select: { id: true, name: true, email: true },
+              },
+            },
+          },
+          fromDistributor: {
+            include: {
+              user: {
+                select: { id: true, name: true, email: true },
+              },
+            },
+          },
         },
         orderBy: { legNumber: "asc" },
+      },
+      trackingEvents: {
+        include: {
+          fromUser: {
+            select: { id: true, name: true, email: true },
+          },
+          toUser: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+        orderBy: { timestamp: "desc" },
       },
     },
     orderBy: { orderDate: "desc" },
