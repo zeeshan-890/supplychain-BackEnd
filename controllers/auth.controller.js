@@ -1,4 +1,5 @@
 import * as authService from "../services/auth.service.js";
+import * as userService from "../services/user.service.js";
 import ResponseError from "../utils/customError.js";
 import {
   pendingUserSchema,
@@ -109,8 +110,7 @@ export async function getCurrentUser(req, res, next) {
     const tokenUser = req.user;
 
     // Fetch user from database to get the name
-    const { getUserById } = await import('../services/user.service.js');
-    const user = await getUserById(tokenUser.id);
+    const user = await userService.getUserById(tokenUser.id);
 
     if (!user) {
       throw new ResponseError('User not found', 404);
