@@ -78,15 +78,9 @@ export async function deleteUser(email) {
 
 // 🟥 Delete user by ID (admin only)
 export async function deleteUserById(id) {
-  // Delete user and all related records in a transaction
+  // Delete user and all related records in a transaction with extended timeout
   return await prisma.$transaction(async (tx) => {
-    // Delete tracking events
-    await tx.trackingEvent.deleteMany({ where: { OR: [{ fromUserId: id }, { toUserId: id }] } });
-
-    // Delete role requests
-    await tx.roleRequest.deleteMany({ where: { userId: id } });
-
-    // Get user to check for profiles
+    // Get user to check for profiles first
     const user = await tx.user.findUnique({
       where: { id },
       include: {
@@ -97,14 +91,38 @@ export async function deleteUserById(id) {
 
     if (!user) return null;
 
+    // Delete tracking events
+    await tx.trackingEvent.deleteMany({
+      where: { OR: [{ fromUserId: id }, { toUserId: id }] }
+    });
+
+    // Delete role requests
+    await tx.roleRequest.deleteMany({ where: { userId: id } });
+
     // If user has supplier profile, delete related data
     if (user.supplierProfile) {
       const supplierId = user.supplierProfile.id;
 
+      // Delete order legs associated with supplier orders first
+      const supplierOrders = await tx.order.findMany({
+        where: { supplierId },
+        select: { id: true }
+      });
+      const orderIds = supplierOrders.map(o => o.id);
+
+      if (orderIds.length > 0) {
+        await tx.orderLeg.deleteMany({ where: { orderId: { in: orderIds } } });
+        await tx.trackingEvent.deleteMany({ where: { orderId: { in: orderIds } } });
+      }
+
       // Delete warehouse inventories
       if (user.supplierProfile.warehouse) {
-        await tx.inventory.deleteMany({ where: { warehouseId: user.supplierProfile.warehouse.id } });
-        await tx.warehouse.delete({ where: { id: user.supplierProfile.warehouse.id } });
+        await tx.inventory.deleteMany({
+          where: { warehouseId: user.supplierProfile.warehouse.id }
+        });
+        await tx.warehouse.delete({
+          where: { id: user.supplierProfile.warehouse.id }
+        });
       }
 
       // Delete products
@@ -113,8 +131,7 @@ export async function deleteUserById(id) {
       // Delete transporters
       await tx.transporter.deleteMany({ where: { supplierId } });
 
-      // Handle orders where user is supplier (set to null or handle appropriately)
-      // Note: Cannot delete orders as they reference the supplier, might need different handling
+      // Delete orders where user is supplier
       await tx.order.deleteMany({ where: { supplierId } });
 
       // Delete supplier profile
@@ -132,10 +149,23 @@ export async function deleteUserById(id) {
       await tx.distributorProfile.delete({ where: { id: distributorId } });
     }
 
-    // Delete orders where user is customer
-    await tx.order.deleteMany({ where: { customerId: id } });
+    // Delete orders where user is customer (with cascade)
+    const customerOrders = await tx.order.findMany({
+      where: { customerId: id },
+      select: { id: true }
+    });
+    const customerOrderIds = customerOrders.map(o => o.id);
+
+    if (customerOrderIds.length > 0) {
+      await tx.orderLeg.deleteMany({ where: { orderId: { in: customerOrderIds } } });
+      await tx.trackingEvent.deleteMany({ where: { orderId: { in: customerOrderIds } } });
+      await tx.order.deleteMany({ where: { customerId: id } });
+    }
 
     // Finally delete the user
     return await tx.user.delete({ where: { id } });
+  }, {
+    maxWait: 15000, // 15 seconds max wait
+    timeout: 15000, // 15 seconds timeout
   });
 }
