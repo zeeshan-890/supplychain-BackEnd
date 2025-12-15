@@ -82,7 +82,7 @@ export async function deleteUserById(req, res, next) {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) throw new ResponseError("Invalid user ID", 400);
-    
+
     const user = await userService.deleteUserById(id);
     if (!user) throw new ResponseError("User doesn't exist", 404);
     res.json({ message: "User deleted successfully" });

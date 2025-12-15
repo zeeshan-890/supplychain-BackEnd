@@ -107,15 +107,15 @@ export async function verifyOtp(req, res, next) {
 export async function getCurrentUser(req, res, next) {
   try {
     const tokenUser = req.user;
-    
+
     // Fetch user from database to get the name
     const { getUserById } = await import('../services/user.service.js');
     const user = await getUserById(tokenUser.id);
-    
+
     if (!user) {
       throw new ResponseError('User not found', 404);
     }
-    
+
     res.json({
       id: user.id,
       email: user.email,
