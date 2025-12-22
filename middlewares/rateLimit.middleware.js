@@ -29,8 +29,10 @@ export function createRateLimiter({
   message = "Too many requests, please try again later.",
 } = {}) {
   return (req, res, next) => {
+    // Get client IP (handle various proxy scenarios)
+    const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
     // Use IP + route as key for more granular limiting
-    const key = `${req.ip}:${req.originalUrl}`;
+    const key = `${clientIp}:${req.originalUrl}`;
     const now = Date.now();
 
     let record = rateLimitStore.get(key);

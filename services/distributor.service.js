@@ -60,7 +60,7 @@ export async function createTransporter(userId, data) {
   });
 }
 
-// 🟦 Get my transporters
+//  Get my transporters
 export async function getMyTransporters(userId) {
   const profile = await prisma.distributorProfile.findUnique({
     where: { userId },
@@ -73,7 +73,7 @@ export async function getMyTransporters(userId) {
   });
 }
 
-// 🟧 Update transporter
+// Update transporter
 export async function updateTransporter(userId, transporterId, data) {
   const profile = await prisma.distributorProfile.findUnique({
     where: { userId },

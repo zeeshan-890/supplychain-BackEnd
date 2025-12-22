@@ -10,6 +10,7 @@ import errorHandler from "./middlewares/globalErrorHandler.js";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
+import { apiLimiter } from "./middlewares/rateLimit.middleware.js";
 
 //Main server instance
 const app = express();
@@ -56,7 +57,7 @@ app.use(cookieParser());
 /***************** ROUTING ****************/
 
 // -------> Health Check <--------
-app.get("/health-check", (req, res) => {
+app.get("/health-check", apiLimiter, (req, res) => {
   res.status(200).json("OK");
 });
 

@@ -121,7 +121,7 @@ export async function getMyOrders(customerId) {
   });
 }
 
-// 🟧 Cancel order (Customer cancels before first shipment)
+//  Cancel order (Customer cancels before first shipment)
 export async function cancelOrder(orderId, customerId) {
   return await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUnique({
@@ -406,9 +406,15 @@ export async function approveOrder(orderId, supplierId, data) {
     // Sign with supplier's private key (use normalized key)
     const supplierSignature = signData(orderHash, normalizedPrivateKey);
 
-    // Sign with server's private key
+  
+
+
+
     const serverPrivateKey = getServerPrivateKey();
     const serverSignature = signData(supplierSignature, serverPrivateKey);
+
+
+    
 
     // Generate QR token
     const qrToken = generateQrToken({

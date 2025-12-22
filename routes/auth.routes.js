@@ -15,8 +15,9 @@ import {
 const router = Router();
 
 // Apply rate limiting to sensitive auth routes
-router.post("/register", otpLimiter, registerUser);
+router.post("/register", authLimiter, registerUser);
 router.post("/verify-otp", authLimiter, verifyOtp);
+router.post("/resend-otp", otpLimiter, verifyOtp); // OTP resend endpoint
 router.post("/login", authLimiter, loginUser);
 router.post("/logout", logoutUser);
 
